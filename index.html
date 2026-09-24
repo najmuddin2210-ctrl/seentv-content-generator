@@ -53,7 +53,7 @@ label{display:block;font-weight:700;margin:12px 0 7px}select,textarea,input{widt
 
 <script>
 const $=x=>document.getElementById(x);
-const MODEL="gemini-3.8-flash";
+const MODELS=["gemini-3.8-flash","gemini-3.7-flash","gemini-3.6-flash","gemini-3.5-flash"];
 function promptText(){
  const p=$("platform").value, prod=$("product").value, tone=$("tone").value, n=$("count").value, idea=$("idea").value.trim();
  return `Anda ialah copywriter media sosial Malaysia yang sangat natural.
@@ -96,14 +96,33 @@ async function generate(){
  $("status").className="status";
  $("result").textContent="";
  try{
-  const url=`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
-  const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},
-    body:JSON.stringify({contents:[{parts:[{text:promptText()}]}],
-      generationConfig:{maxOutputTokens:2500}})});
-  const d=await r.json();
-  if(!r.ok) throw new Error(d?.error?.message||"Gemini API error");
-  const out=d?.candidates?.[0]?.content?.parts?.map(x=>x.text||"").join("")||"";
-  if(!out) throw new Error("Gemini tidak memulangkan content.");
+  let lastError="Gemini API error";
+  let out="";
+  for(let i=0;i<MODELS.length;i++){
+    const model=MODELS[i];
+    try{
+      $("status").textContent=`AI sedang generate… (${model})`;
+      const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+      let r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},
+        body:JSON.stringify({contents:[{parts:[{text:promptText()}]}],
+          generationConfig:{maxOutputTokens:2500}})});
+      let d=await r.json();
+      if(r.ok){
+        out=d?.candidates?.[0]?.content?.parts?.map(x=>x.text||"").join("")||"";
+        if(out) break;
+        lastError="Gemini tidak memulangkan content.";
+      }else{
+        lastError=d?.error?.message||"Gemini API error";
+        // Retry/fallback for temporary overload/rate-limit/server errors.
+        if(![408,429,500,502,503,504].includes(r.status)) break;
+      }
+      if(i<MODELS.length-1) await new Promise(res=>setTimeout(res,1200*(i+1)));
+    }catch(e){
+      lastError=e.message||"Network error";
+      if(i<MODELS.length-1) await new Promise(res=>setTimeout(res,1200*(i+1)));
+    }
+  }
+  if(!out) throw new Error(lastError);
   $("result").textContent=out;
   $("status").textContent="Siap ✓";
   $("status").className="status ok";
