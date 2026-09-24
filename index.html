@@ -99,7 +99,7 @@ async function generate(){
   const url=`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
   const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},
     body:JSON.stringify({contents:[{parts:[{text:promptText()}]}],
-      generationConfig:{temperature:0.9,maxOutputTokens:2500}})});
+      generationConfig:{maxOutputTokens:2500}})});
   const d=await r.json();
   if(!r.ok) throw new Error(d?.error?.message||"Gemini API error");
   const out=d?.candidates?.[0]?.content?.parts?.map(x=>x.text||"").join("")||"";
