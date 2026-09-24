@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SEENTV Content Generator</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f5f6f8;color:#171717}
+.wrap{max-width:760px;margin:auto;padding:18px}.card{background:#fff;border-radius:18px;padding:18px;margin-bottom:14px;box-shadow:0 3px 15px #00000010}
+h1{font-size:25px;margin:0 0 5px}.sub{color:#666;margin-bottom:18px}
+label{font-weight:700;display:block;margin:14px 0 7px}select,input,textarea{width:100%;padding:13px;border:1px solid #ddd;border-radius:12px;font-size:15px;background:#fff}
+textarea{min-height:110px;resize:vertical}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{border:0;border-radius:12px;padding:13px 16px;font-weight:700;font-size:15px;cursor:pointer}
+.generate{width:100%;background:#111;color:#fff;margin-top:15px}.copy{background:#eee;margin-top:10px;width:100%}
+.result{white-space:pre-wrap;line-height:1.55;font-size:15px}.status{font-size:13px;color:#666;margin-top:9px}
+.small{font-size:12px;color:#777}.hide{display:none}
+@media(max-width:560px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>🚀 SEENTV Content Generator</h1>
+    <div class="sub">Masukkan point ringkas → generate content siap.</div>
+
+    <div class="row">
+      <div>
+        <label>Platform</label>
+        <select id="platform">
+          <option>Facebook</option><option>Instagram</option><option>TikTok</option>
+          <option>WhatsApp</option><option>Threads</option>
+        </select>
+      </div>
+      <div>
+        <label>Produk</label>
+        <select id="product">
+          <option>SEENTV</option><option>Brader TV</option><option>Produk lain</option>
+        </select>
+      </div>
+    </div>
+
+    <label>Tajuk / point content</label>
+    <textarea id="idea" placeholder="Contoh: SEENTV 900+ live channel, 60,000+ movie & series, sesuai untuk family..."></textarea>
+
+    <label>Gaya</label>
+    <select id="tone">
+      <option>Casual & santai</option>
+      <option>Power selling</option>
+      <option>Soft selling</option>
+      <option>Kelakar / catchy</option>
+      <option>Professional</option>
+    </select>
+
+    <button class="generate" onclick="generate()">✨ GENERATE CONTENT</button>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <label>Hasil Content</label>
+    <div id="result" class="result">Content akan keluar di sini.</div>
+    <button class="copy" onclick="copyResult()">📋 COPY CONTENT</button>
+  </div>
+
+  <div class="card">
+    <label>AI API Key (optional)</label>
+    <input id="apiKey" type="password" placeholder="Masukkan Gemini API key jika ada">
+    <div class="small">Key ini disimpan dalam browser telefon sahaja. Untuk penggunaan sebenar/berkongsi app, lebih selamat sambungkan kepada backend.</div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+function localGenerate(platform, product, idea, tone){
+  const hooks=[
+    `🔥 Kalau korang tengah cari ${product}, tengok ni dulu!`,
+    `Ramai orang masih tak tahu pasal ${product} ni 👀`,
+    `Nak cara lebih senang untuk dapatkan ${product}?`,
+    `Ini mungkin pilihan yang korang tengah cari 😎`
+  ];
+  const hook=hooks[Math.floor(Math.random()*hooks.length)];
+  return `${hook}
+
+${idea}
+
+✨ Kenapa ramai pilih ${product}:
+• Mudah digunakan
+• Sesuai untuk kegunaan harian
+• Banyak pilihan content
+• Senang untuk family
+
+📲 Nak tahu harga & cara dapatkan?
+PM/WhatsApp sekarang.
+
+#${product.replace(/[^A-Za-z0-9]/g,'')} #TV #Entertainment #Malaysia`;
+}
+
+async function generate(){
+  const platform=$("platform").value, product=$("product").value;
+  const idea=$("idea").value.trim(), tone=$("tone").value, key=$("apiKey").value.trim();
+  if(!idea){alert("Masukkan tajuk atau point content dulu.");return}
+  $("status").textContent="Generating...";
+  if(key){
+    try{
+      const prompt=`Anda ialah copywriter media sosial Malaysia.
+Buat content dalam Bahasa Melayu untuk platform ${platform}.
+Produk: ${product}
+Gaya: ${tone}
+Point pengguna: ${idea}
+
+Hasilkan:
+1. Hook kuat
+2. Caption yang natural, bukan nampak AI
+3. CTA
+4. Hashtag
+Jangan reka fakta yang tiada dalam point pengguna.`;
+      const r=await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="+encodeURIComponent(key),{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})
+      });
+      if(!r.ok) throw new Error("API error");
+      const d=await r.json();
+      const text=d?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if(!text) throw new Error("Tiada output");
+      $("result").textContent=text;
+      $("status").textContent="Siap ✓";
+      return;
+    }catch(e){
+      $("status").textContent="AI API gagal — guna generator offline.";
+    }
+  }
+  $("result").textContent=localGenerate(platform,product,idea,tone);
+  $("status").textContent="Siap ✓ (mode offline)";
+}
+function copyResult(){
+  navigator.clipboard.writeText($("result").textContent);
+  $("status").textContent="Content dah dicopy ✓";
+}
+</script>
+</body>
+</html>
