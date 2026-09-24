@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SEENTV AI Content Generator</title>
+<style>
+:root{font-family:Inter,Arial,sans-serif}*{box-sizing:border-box}body{margin:0;background:#f3f4f6;color:#111}
+.wrap{max-width:820px;margin:auto;padding:16px}.hero{background:#111;color:#fff;border-radius:22px;padding:22px;margin-bottom:14px}
+h1{margin:0 0 6px;font-size:26px}.muted{color:#aaa;font-size:14px}.card{background:#fff;border-radius:18px;padding:17px;margin-bottom:14px;box-shadow:0 3px 16px #0000000b}
+label{display:block;font-weight:700;margin:12px 0 7px}select,textarea,input{width:100%;padding:13px;border:1px solid #ddd;border-radius:12px;font-size:15px;background:#fff}textarea{min-height:125px;resize:vertical}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{width:100%;border:0;border-radius:12px;padding:14px;font-weight:800;font-size:15px;cursor:pointer}.primary{background:#111;color:#fff;margin-top:14px}.secondary{background:#eee;margin-top:9px}
+.result{white-space:pre-wrap;line-height:1.58;font-size:15px}.variant{border:1px solid #e5e5e5;border-radius:14px;padding:14px;margin:10px 0}.variant h3{margin:0 0 8px;font-size:15px}
+.status{font-size:13px;margin-top:9px;color:#666}.danger{color:#b42318}.ok{color:#067647}.small{font-size:12px;color:#777;line-height:1.4}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="hero">
+<h1>🤖 SEENTV AI Content Generator</h1>
+<div class="muted">Masukkan idea ringkas. Gemini akan tulis content yang terus boleh copy.</div>
+</div>
+
+<div class="card">
+<div class="grid">
+<div><label>Platform</label><select id="platform"><option>Facebook</option><option>Instagram</option><option>TikTok</option><option>WhatsApp</option><option>Threads</option></select></div>
+<div><label>Produk</label><select id="product"><option>SEENTV</option><option>Brader TV</option><option>Produk lain</option></select></div>
+</div>
+
+<label>Idea / fakta produk</label>
+<textarea id="idea" placeholder="Contoh: SEENTV ada 900+ live channel dan 60,000+ movie & series. Sasaran family yang nak hiburan di rumah."></textarea>
+
+<div class="grid">
+<div><label>Gaya</label><select id="tone"><option>Casual Malaysia</option><option>Power selling</option><option>Soft selling</option><option>Kelakar & catchy</option><option>Professional</option></select></div>
+<div><label>Bilangan versi</label><select id="count"><option value="1">1 versi</option><option value="2">2 versi</option><option value="3" selected>3 versi</option></select></div>
+</div>
+
+<label>Gemini API Key</label>
+<input id="key" type="password" placeholder="AIza...">
+<div class="small">Key digunakan terus dari browser untuk panggilan Gemini dan tidak dihantar kepada server kita. Jangan masukkan key yang anda tak mahu terdedah kepada pengguna lain. Untuk aplikasi awam, gunakan backend/proxy.</div>
+
+<button class="btn primary" onclick="generate()">✨ GENERATE AI CONTENT</button>
+<div id="status" class="status"></div>
+</div>
+
+<div class="card">
+<label>Hasil</label>
+<div id="result" class="result">Belum ada content.</div>
+<button class="btn secondary" onclick="copyAll()">📋 COPY SEMUA</button>
+</div>
+</div>
+
+<script>
+const $=x=>document.getElementById(x);
+const MODEL="gemini-3.8-flash";
+function promptText(){
+ const p=$("platform").value, prod=$("product").value, tone=$("tone").value, n=$("count").value, idea=$("idea").value.trim();
+ return `Anda ialah copywriter media sosial Malaysia yang sangat natural.
+Tulis ${n} versi content untuk ${p}.
+Produk: ${prod}
+Gaya: ${tone}
+Fakta/idea pengguna (WAJIB dipatuhi, jangan reka fakta): ${idea}
+
+Keperluan:
+- Bahasa Melayu Malaysia, natural macam manusia.
+- Hook mesti menarik dalam 1-2 ayat pertama.
+- Jangan overclaim atau cipta harga, promosi, channel, jaminan atau fakta yang tiada dalam input.
+- Sesuaikan panjang dan gaya dengan ${p}.
+- Setiap versi mesti ada HOOK, CAPTION dan CTA.
+- Tambah HASHTAG yang relevan sahaja.
+- Jangan letak penerangan panjang tentang proses anda.
+- Jika WhatsApp, tulis seperti mesej WhatsApp yang mudah dibaca.
+- Jika TikTok, buat caption pendek dan punchy.
+- Jika Threads, gaya conversational.
+- Jika Instagram/Facebook, buat caption yang kemas.
+
+Format:
+VERSI 1
+HOOK:
+...
+CAPTION:
+...
+CTA:
+...
+HASHTAG:
+...
+
+Ulang format untuk versi seterusnya.`;
+}
+async function generate(){
+ const key=$("key").value.trim(), idea=$("idea").value.trim();
+ if(!key){alert("Masukkan Gemini API Key dulu.");return}
+ if(!idea){alert("Masukkan idea/fakta content dulu.");return}
+ $("status").textContent="AI sedang generate...";
+ $("status").className="status";
+ $("result").textContent="";
+ try{
+  const url=`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+  const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","x-goog-api-key":key},
+    body:JSON.stringify({contents:[{parts:[{text:promptText()}]}],
+      generationConfig:{temperature:0.9,maxOutputTokens:2500}})});
+  const d=await r.json();
+  if(!r.ok) throw new Error(d?.error?.message||"Gemini API error");
+  const out=d?.candidates?.[0]?.content?.parts?.map(x=>x.text||"").join("")||"";
+  if(!out) throw new Error("Gemini tidak memulangkan content.");
+  $("result").textContent=out;
+  $("status").textContent="Siap ✓";
+  $("status").className="status ok";
+ }catch(e){
+  $("status").textContent="Gagal: "+e.message;
+  $("status").className="status danger";
+ }
+}
+async function copyAll(){
+ try{await navigator.clipboard.writeText($("result").textContent);$("status").textContent="Dah copy ✓";$("status").className="status ok"}
+ catch(e){alert("Tak dapat copy automatik. Tekan lama pada text dan Copy.")}
+}
+</script>
+</body>
+</html>
